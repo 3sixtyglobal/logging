@@ -353,7 +353,7 @@ importers:
     dependencies:
       '@3sixty/api-models':
         specifier: next
-        version: 0.20.0-next.0
+        version: 0.20.0-next.1
       '@3sixty/context':
         specifier: next
         version: 0.20.0-next.2
@@ -365,7 +365,7 @@ importers:
         version: 0.20.0-next.2
       '@3sixty/entity-storage-models':
         specifier: next
-        version: 0.20.0-next.0
+        version: 0.20.0-next.1
       '@3sixty/logging-models':
         specifier: 0.20.0-next.0
         version: link:../logging-models
@@ -375,10 +375,10 @@ importers:
     devDependencies:
       '@3sixty/entity-storage-connector-memory':
         specifier: next
-        version: 0.20.0-next.0
+        version: 0.20.0-next.1
       '@3sixty/entity-storage-service':
         specifier: next
-        version: 0.20.0-next.0
+        version: 0.20.0-next.1
       '@3sixty/nameof-transformer':
         specifier: next
         version: 0.20.0-next.2
@@ -603,10 +603,10 @@ importers:
     dependencies:
       '@3sixty/api-core':
         specifier: next
-        version: 0.20.0-next.0(supports-color@10.2.2)
+        version: 0.20.0-next.1(supports-color@10.2.2)
       '@3sixty/api-models':
         specifier: next
-        version: 0.20.0-next.0
+        version: 0.20.0-next.1
       '@3sixty/core':
         specifier: next
         version: 0.20.0-next.2
@@ -664,7 +664,7 @@ importers:
     dependencies:
       '@3sixty/api-models':
         specifier: next
-        version: 0.20.0-next.0
+        version: 0.20.0-next.1
       '@3sixty/core':
         specifier: next
         version: 0.20.0-next.2
@@ -723,12 +723,12 @@ importers:
 
 packages:
 
-  '@3sixty/api-core@0.20.0-next.0':
-    resolution: {integrity: sha512-tPyKJpr7Odcaa99U1dfCvy0UUiV7sZH7rBsFBJ5obXdlSXd0/aC6Sh2iFJpMShkr0NLTB7v4PhKE75BDvz/Qyw==}
+  '@3sixty/api-core@0.20.0-next.1':
+    resolution: {integrity: sha512-gd6IJEufB6C7Sjv3G+BRPKP7UiZ1NTSUdJqD2nD5JSU9mJ41PwhkZ1PArV5PODUXUI8A/f93g463WxTlYf8Vgw==}
     engines: {node: '>=24.0.0'}
 
-  '@3sixty/api-models@0.20.0-next.0':
-    resolution: {integrity: sha512-AShxxmk3JR5dvLyC3zXYsBb4FZbtoNYsRlB2TUynLk4epOSZcZN+p8Ya+cMM+vsbLT8joA/Jk8TC9fPSEKSk3g==}
+  '@3sixty/api-models@0.20.0-next.1':
+    resolution: {integrity: sha512-1KmZs1JOKJKqo1UEpIgWblBcnefBQ/L027HPcck7gqYp/pDJT93/OOPPv0VwHccDY4C/UN0ZhC1oD4TPv+2k3Q==}
     engines: {node: '>=24.0.0'}
 
   '@3sixty/cli-core@0.20.0-next.2':
@@ -747,16 +747,16 @@ packages:
     resolution: {integrity: sha512-0tLDaAs5j3NDob9PcmTGP7SBBr2BUnmmgj7/EuvGZNXB1qDV9+ZlYbI2R6KSf8FtGs+S1VsOohgRoqIIBoGvgQ==}
     engines: {node: '>=24.0.0'}
 
-  '@3sixty/entity-storage-connector-memory@0.20.0-next.0':
-    resolution: {integrity: sha512-jN76Ljx3Xmqx6sng1aBR6WE66mcxUxEwWON5CzBjBRq21PvJdS7jFmXz6JPJH387dRzy5ar76W9yenrES5ajrQ==}
+  '@3sixty/entity-storage-connector-memory@0.20.0-next.1':
+    resolution: {integrity: sha512-IEDnCJGk/DlH3jHajIG+s5SQ36ZhR0Mjo38ISXJKmXbQlcl4CtNfh3Ac/1isBt7cbL2FU4ZeJGOL1pVFAa4xlQ==}
     engines: {node: '>=24.0.0'}
 
-  '@3sixty/entity-storage-models@0.20.0-next.0':
-    resolution: {integrity: sha512-IG5JgBzpNScXF2+XExjFYLnSSbsFfYGCERXMx6JpB1NRzD7XvwmUWUkvBxGjcXhayEqnE0eEiEdXRp7Xevt3Iw==}
+  '@3sixty/entity-storage-models@0.20.0-next.1':
+    resolution: {integrity: sha512-Ruf3cG2VOipevsG1WnZjxya/MIu0M4XNaEwZ7O/inbje+vkdf0PHDyHqxcFXMXOTX+U8dvD+z7SPitfsBp/Tvg==}
     engines: {node: '>=24.0.0'}
 
-  '@3sixty/entity-storage-service@0.20.0-next.0':
-    resolution: {integrity: sha512-wOCoLXIUujtVCeROTwScf3kYp4BqNC1/R3BC5JZinp8i9NDVSRxHb9/ekU3EZaKTezVcsIUnBkJ1EPgN7rNElA==}
+  '@3sixty/entity-storage-service@0.20.0-next.1':
+    resolution: {integrity: sha512-H3LoZjV0jjFeh3nS3V5NHSWTsNo5/KCrr+TBOf9kr4Kh6+knS9Z4fJo3f6Gwg5u2kvlY8Lk4jqFof01nIjAsiA==}
     engines: {node: '>=24.0.0'}
 
   '@3sixty/entity@0.20.0-next.2':
@@ -3573,8 +3573,8 @@ packages:
     resolution: {integrity: sha512-j7WyPdf0CJoutMzMoPLF/bVXHtKZIT9Rb4eGeEbWw8X2t5oirjPgpL+OpaENZrILYaXqYwnVH+qgUwVbl+pUJQ==}
     engines: {node: '>= 18'}
 
-  socket.io-client@4.8.3:
-    resolution: {integrity: sha512-uP0bpjWrjQmUt5DTHq9RuoCBdFJF10cdX9X+a368j/Ft0wmaVgxlrjvK3kjvgCODOMMOz9lcaRzxmso0bTWZ/g==}
+  socket.io-client@4.8.4:
+    resolution: {integrity: sha512-7wjKAvVXYOJsbmUgkWbnhPD4bFpkqrUR0++XOjpGFmqDqsqV1CI93VTraeExLxpjxEqrWgFoSRZu1ihjLWfkAA==}
     engines: {node: '>=10.0.0'}
 
   socket.io-parser@4.2.7:
@@ -4026,19 +4026,19 @@ packages:
 
 snapshots:
 
-  '@3sixty/api-core@0.20.0-next.0(supports-color@10.2.2)':
+  '@3sixty/api-core@0.20.0-next.1(supports-color@10.2.2)':
     dependencies:
-      '@3sixty/api-models': 0.20.0-next.0
+      '@3sixty/api-models': 0.20.0-next.1
       '@3sixty/core': 0.20.0-next.2
       '@3sixty/nameof': 0.20.0-next.2
       '@3sixty/web': 0.20.0-next.2
-      socket.io-client: 4.8.3(supports-color@10.2.2)
+      socket.io-client: 4.8.4(supports-color@10.2.2)
     transitivePeerDependencies:
       - bufferutil
       - supports-color
       - utf-8-validate
 
-  '@3sixty/api-models@0.20.0-next.0':
+  '@3sixty/api-models@0.20.0-next.1':
     dependencies:
       '@3sixty/context': 0.20.0-next.2
       '@3sixty/core': 0.20.0-next.2
@@ -4077,17 +4077,17 @@ snapshots:
       '@scure/bip39': 2.4.0
       micro-key-producer: 0.10.2
 
-  '@3sixty/entity-storage-connector-memory@0.20.0-next.0':
+  '@3sixty/entity-storage-connector-memory@0.20.0-next.1':
     dependencies:
-      '@3sixty/api-models': 0.20.0-next.0
+      '@3sixty/api-models': 0.20.0-next.1
       '@3sixty/context': 0.20.0-next.2
       '@3sixty/core': 0.20.0-next.2
       '@3sixty/entity': 0.20.0-next.2
-      '@3sixty/entity-storage-models': 0.20.0-next.0
+      '@3sixty/entity-storage-models': 0.20.0-next.1
       '@3sixty/logging-models': 0.20.0-next.0
       '@3sixty/nameof': 0.20.0-next.2
 
-  '@3sixty/entity-storage-models@0.20.0-next.0':
+  '@3sixty/entity-storage-models@0.20.0-next.1':
     dependencies:
       '@3sixty/context': 0.20.0-next.2
       '@3sixty/core': 0.20.0-next.2
@@ -4096,13 +4096,13 @@ snapshots:
       '@3sixty/logging-models': 0.20.0-next.0
       '@3sixty/nameof': 0.20.0-next.2
 
-  '@3sixty/entity-storage-service@0.20.0-next.0':
+  '@3sixty/entity-storage-service@0.20.0-next.1':
     dependencies:
-      '@3sixty/api-models': 0.20.0-next.0
+      '@3sixty/api-models': 0.20.0-next.1
       '@3sixty/context': 0.20.0-next.2
       '@3sixty/core': 0.20.0-next.2
       '@3sixty/entity': 0.20.0-next.2
-      '@3sixty/entity-storage-models': 0.20.0-next.0
+      '@3sixty/entity-storage-models': 0.20.0-next.1
       '@3sixty/logging-models': 0.20.0-next.0
       '@3sixty/nameof': 0.20.0-next.2
       '@3sixty/web': 0.20.0-next.2
@@ -7054,7 +7054,7 @@ snapshots:
 
   smol-toml@1.9.1: {}
 
-  socket.io-client@4.8.3(supports-color@10.2.2):
+  socket.io-client@4.8.4(supports-color@10.2.2):
     dependencies:
       '@socket.io/component-emitter': 3.1.2
       debug: 4.4.3(supports-color@10.2.2)
