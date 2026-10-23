@@ -207,7 +207,7 @@ The optional sort order.
 
 ##### properties?
 
-keyof `ILogEntry`[]
+(keyof `ILogEntry`)[]
 
 The optional keys to return, defaults to all.
 
