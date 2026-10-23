@@ -100,7 +100,7 @@ The optional sort order.
 
 ##### properties?
 
-keyof [`ILogEntry`](../interfaces/ILogEntry.md)[]
+(keyof [`ILogEntry`](../interfaces/ILogEntry.md))[]
 
 The optional keys to return, defaults to all.
 
