@@ -245,7 +245,7 @@ importers:
         specifier: next
         version: 0.20.0-next.2
       '@3sixty/logging-models':
-        specifier: 0.20.0-next.0
+        specifier: 0.20.0-next.1
         version: link:../logging-models
       '@3sixty/nameof':
         specifier: next
@@ -300,7 +300,7 @@ importers:
         specifier: next
         version: 0.20.0-next.2
       '@3sixty/logging-models':
-        specifier: 0.20.0-next.0
+        specifier: 0.20.0-next.1
         version: link:../logging-models
       '@3sixty/nameof':
         specifier: next
@@ -367,7 +367,7 @@ importers:
         specifier: next
         version: 0.20.0-next.1
       '@3sixty/logging-models':
-        specifier: 0.20.0-next.0
+        specifier: 0.20.0-next.1
         version: link:../logging-models
       '@3sixty/nameof':
         specifier: next
@@ -428,7 +428,7 @@ importers:
         specifier: next
         version: 0.20.0-next.2
       '@3sixty/logging-models':
-        specifier: 0.20.0-next.0
+        specifier: 0.20.0-next.1
         version: link:../logging-models
       '@3sixty/nameof':
         specifier: next
@@ -486,7 +486,7 @@ importers:
         specifier: next
         version: 0.20.0-next.2
       '@3sixty/logging-models':
-        specifier: 0.20.0-next.0
+        specifier: 0.20.0-next.1
         version: link:../logging-models
       '@3sixty/nameof':
         specifier: next
@@ -614,7 +614,7 @@ importers:
         specifier: next
         version: 0.20.0-next.2
       '@3sixty/logging-models':
-        specifier: 0.20.0-next.0
+        specifier: 0.20.0-next.1
         version: link:../logging-models
       '@3sixty/nameof':
         specifier: next
@@ -672,7 +672,7 @@ importers:
         specifier: next
         version: 0.20.0-next.2
       '@3sixty/logging-models':
-        specifier: 0.20.0-next.0
+        specifier: 0.20.0-next.1
         version: link:../logging-models
       '@3sixty/nameof':
         specifier: next
