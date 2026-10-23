@@ -1,6 +1,6 @@
 // Copyright 2024 IOTA Stiftung.
 // SPDX-License-Identifier: Apache-2.0.
-import { entity, property } from "@twin.org/entity";
+import { entity, property } from "@3sixty/entity";
 
 /**
  * Entity representing a flattened error captured within a log entry.
@@ -10,19 +10,19 @@ export class LogEntryError {
 	/**
 	 * The name for the error.
 	 */
-	@property({ type: "string" })
+	@property({ type: "string", maxLength: 256 })
 	public name!: string;
 
 	/**
 	 * The message for the error.
 	 */
-	@property({ type: "string" })
+	@property({ type: "string", maxLength: 4096 })
 	public message!: string;
 
 	/**
 	 * The source of the error.
 	 */
-	@property({ type: "string", optional: true })
+	@property({ type: "string", maxLength: 256, optional: true })
 	public source?: string;
 
 	/**

@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0.
 import { type FileHandle, mkdir, open, rename, rm, stat } from "node:fs/promises";
 import path from "node:path";
-import { ContextIdKeys, ContextIdStore, type IContextIds } from "@twin.org/context";
-import { BaseError, Coerce, GeneralError, Guards, type IError, Is, Mutex } from "@twin.org/core";
-import { type ILogEntry, type ILoggingConnector, LogLevel } from "@twin.org/logging-models";
-import { nameof } from "@twin.org/nameof";
+import { ContextIdKeys, ContextIdStore, type IContextIds } from "@3sixty/context";
+import { BaseError, Coerce, GeneralError, Guards, type IError, Is, Mutex } from "@3sixty/core";
+import { type ILogEntry, type ILoggingConnector, LogLevel } from "@3sixty/logging-models";
+import { nameof } from "@3sixty/nameof";
 import type { IFileLoggingConnectorConstructorOptions } from "./models/IFileLoggingConnectorConstructorOptions.js";
 
 /**
@@ -209,6 +209,14 @@ export class FileLoggingConnector implements ILoggingConnector {
 	 */
 	public async log(logEntry: ILogEntry): Promise<void> {
 		Guards.object<ILogEntry>(FileLoggingConnector.CLASS_NAME, nameof(logEntry), logEntry);
+		Guards.arrayOneOf(
+			FileLoggingConnector.CLASS_NAME,
+			nameof(logEntry.level),
+			logEntry.level,
+			Object.values(LogLevel)
+		);
+		Guards.string(FileLoggingConnector.CLASS_NAME, nameof(logEntry.source), logEntry.source);
+		Guards.string(FileLoggingConnector.CLASS_NAME, nameof(logEntry.message), logEntry.message);
 
 		if (!this._levels.includes(logEntry.level)) {
 			return;

@@ -1,6 +1,6 @@
 // Copyright 2024 IOTA Stiftung.
 // SPDX-License-Identifier: Apache-2.0.
-import type { ILoggingLevelsConfig } from "@twin.org/logging-models";
+import type { ILoggingLevelsConfig } from "@3sixty/logging-models";
 
 /**
  * Configuration for the Console Logging Connector.
@@ -15,4 +15,10 @@ export interface IConsoleLoggingConnectorConfig extends ILoggingLevelsConfig {
 	 * Hide the group display.
 	 */
 	hideGroups?: boolean;
+
+	/**
+	 * Disable colour in the output.
+	 * @default false
+	 */
+	disableColor?: boolean;
 }

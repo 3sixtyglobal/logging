@@ -1,20 +1,20 @@
 // Copyright 2024 IOTA Stiftung.
 // SPDX-License-Identifier: Apache-2.0.
-import { Guards, Is } from "@twin.org/core";
+import { Guards, Is } from "@3sixty/core";
 import {
 	ComparisonOperator,
 	LogicalOperator,
 	SortDirection,
 	type EntityCondition
-} from "@twin.org/entity";
+} from "@3sixty/entity";
 import {
 	LoggingConnectorFactory,
+	LogLevel,
 	type ILogEntry,
 	type ILoggingComponent,
-	type ILoggingConnector,
-	type LogLevel
-} from "@twin.org/logging-models";
-import { nameof } from "@twin.org/nameof";
+	type ILoggingConnector
+} from "@3sixty/logging-models";
+import { nameof } from "@3sixty/nameof";
 import type { ILoggingServiceConstructorOptions } from "./models/ILoggingServiceConstructorOptions.js";
 
 /**
@@ -57,6 +57,14 @@ export class LoggingService implements ILoggingComponent {
 	 */
 	public async log(logEntry: ILogEntry): Promise<void> {
 		Guards.object<ILogEntry>(LoggingService.CLASS_NAME, nameof(logEntry), logEntry);
+		Guards.arrayOneOf(
+			LoggingService.CLASS_NAME,
+			nameof(logEntry.level),
+			logEntry.level,
+			Object.values(LogLevel)
+		);
+		Guards.string(LoggingService.CLASS_NAME, nameof(logEntry.source), logEntry.source);
+		Guards.string(LoggingService.CLASS_NAME, nameof(logEntry.message), logEntry.message);
 
 		await this._loggingConnector.log(logEntry);
 	}

@@ -1,9 +1,9 @@
 // Copyright 2026 IOTA Stiftung.
 // SPDX-License-Identifier: Apache-2.0.
-import { GuardError } from "@twin.org/core";
-import type { ILogEntry } from "@twin.org/logging-models";
-import { LogLevel } from "@twin.org/logging-models";
-import { HttpMethod } from "@twin.org/web";
+import { GuardError } from "@3sixty/core";
+import type { ILogEntry } from "@3sixty/logging-models";
+import { LogLevel } from "@3sixty/logging-models";
+import { HttpMethod } from "@3sixty/web";
 import { LoggingRestClient } from "../src/loggingRestClient.js";
 import {
 	jsonResponse,
@@ -92,6 +92,39 @@ describe("LoggingRestClient", () => {
 			fetchMock.mockResolvedValueOnce(noContentResponse());
 
 			await expect(client.log(TEST_LOG_ENTRY)).resolves.toBeUndefined();
+		});
+
+		test("rejects an entry with no message without sending a request", async () => {
+			await expect(
+				client.log({ level: LogLevel.Info, source: "client" } as never)
+			).rejects.toMatchObject({
+				name: GuardError.CLASS_NAME,
+				message: "guard.string",
+				properties: { property: "logEntry.message" }
+			});
+			expect(fetchMock).not.toHaveBeenCalled();
+		});
+
+		test("rejects an entry with a non-string source without sending a request", async () => {
+			await expect(
+				client.log({ level: LogLevel.Info, source: 42, message: "hello" } as never)
+			).rejects.toMatchObject({
+				name: GuardError.CLASS_NAME,
+				message: "guard.string",
+				properties: { property: "logEntry.source" }
+			});
+			expect(fetchMock).not.toHaveBeenCalled();
+		});
+
+		test("rejects an entry with an unknown level without sending a request", async () => {
+			await expect(
+				client.log({ level: "critical", source: "client", message: "hello" } as never)
+			).rejects.toMatchObject({
+				name: GuardError.CLASS_NAME,
+				message: "guard.arrayOneOf",
+				properties: { property: "logEntry.level" }
+			});
+			expect(fetchMock).not.toHaveBeenCalled();
 		});
 	});
 

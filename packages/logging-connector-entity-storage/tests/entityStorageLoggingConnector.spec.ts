@@ -1,13 +1,14 @@
 // Copyright 2024 IOTA Stiftung.
 // SPDX-License-Identifier: Apache-2.0.
-import type { IPlatformComponent } from "@twin.org/api-models";
-import { ContextIdKeys, ContextIdStore } from "@twin.org/context";
-import { ComponentFactory, Is } from "@twin.org/core";
-import { MemoryEntityStorageConnector } from "@twin.org/entity-storage-connector-memory";
-import { EntityStorageConnectorFactory } from "@twin.org/entity-storage-models";
-import { type ILogEntry, LogLevel } from "@twin.org/logging-models";
-import { nameof } from "@twin.org/nameof";
-import type { LogEntry } from "../src/entities/logEntry.js";
+import type { IPlatformComponent } from "@3sixty/api-models";
+import { ContextIdKeys, ContextIdStore } from "@3sixty/context";
+import { ComponentFactory, GuardError, Is } from "@3sixty/core";
+import { EntitySchemaHelper } from "@3sixty/entity";
+import { MemoryEntityStorageConnector } from "@3sixty/entity-storage-connector-memory";
+import { EntityStorageConnectorFactory } from "@3sixty/entity-storage-models";
+import { type ILogEntry, LogLevel } from "@3sixty/logging-models";
+import { nameof } from "@3sixty/nameof";
+import { LogEntry } from "../src/entities/logEntry.js";
 import { EntityStorageLoggingConnector } from "../src/entityStorageLoggingConnector.js";
 import { initSchema } from "../src/schema.js";
 
@@ -49,6 +50,30 @@ describe("EntityStorageLoggingConnector", () => {
 		ComponentFactory.register("platform", () => makePlatformComponent(false));
 		const logging = new EntityStorageLoggingConnector();
 		expect(logging).toBeDefined();
+	});
+
+	test("log entry schema bounds the id so the storage layer can index it in full", () => {
+		const schema = EntitySchemaHelper.getSchema(LogEntry);
+		const idProperty = schema.properties?.find(property => property.property === "id");
+
+		expect(idProperty?.isPrimary).toEqual(true);
+		expect(idProperty?.maxLength).toEqual(255);
+	});
+
+	test("generated log entry ids fit within the storage bound", async () => {
+		ComponentFactory.register("platform", () => makePlatformComponent(false));
+		const logging = new EntityStorageLoggingConnector({
+			config: { batchSize: 0, batchIntervalMs: 0 }
+		});
+
+		await logging.log({ level: LogLevel.Info, source: "test", message: "bounded" });
+
+		const stored = await storage.query(undefined, undefined, undefined, undefined, 1);
+		expect(stored.entities).toHaveLength(1);
+
+		const generatedId = stored.entities[0]?.id ?? "";
+		expect(generatedId).toHaveLength(64);
+		expect(generatedId.length).toBeLessThanOrEqual(255);
 	});
 
 	/**
@@ -98,12 +123,20 @@ describe("EntityStorageLoggingConnector", () => {
 				expect(result.entities[0].message).toBe("hello");
 			});
 
-			test("routes immediate writes through platformComponent.execute", async () => {
+			// An immediate write is routed exactly as a batched flush would route it; only an
+			// entry logged with no tenant context goes through platformComponent.execute() to be
+			// broadcast across every tenant.
+			test("routes immediate writes through platformComponent.execute only when no tenant context", async () => {
 				const logging = new EntityStorageLoggingConnector({
 					config: { batchSize: 0, batchIntervalMs: 0 }
 				});
 				await logInContext(logging, { level: LogLevel.Info, source: "test", message: "hello" });
-				expect(executeSpy).toHaveBeenCalledTimes(1);
+
+				if (multiTenant && !inTenantContext) {
+					expect(executeSpy).toHaveBeenCalledTimes(1);
+				} else {
+					expect(executeSpy).not.toHaveBeenCalled();
+				}
 			});
 
 			test("filters entries by configured log level", async () => {
@@ -131,8 +164,11 @@ describe("EntityStorageLoggingConnector", () => {
 
 				await logInContext(logging, { level: LogLevel.Info, source: "test", message: "three" });
 
-				const after = await storage.query(undefined, undefined, undefined, undefined, 100);
-				expect(after.entities).toHaveLength(3);
+				// The threshold flush is detached, so the write lands shortly after log() resolves.
+				await vi.waitFor(async () => {
+					const after = await storage.query(undefined, undefined, undefined, undefined, 100);
+					expect(after.entities).toHaveLength(3);
+				});
 			});
 
 			test("refills cache and flushes again after each threshold is reached", async () => {
@@ -144,8 +180,95 @@ describe("EntityStorageLoggingConnector", () => {
 				await logInContext(logging, { level: LogLevel.Info, source: "test", message: "three" });
 				await logInContext(logging, { level: LogLevel.Info, source: "test", message: "four" });
 
+				await vi.waitFor(async () => {
+					const result = await storage.query(undefined, undefined, undefined, undefined, 100);
+					expect(result.entities).toHaveLength(4);
+				});
+			});
+
+			test("does not block the caller that fills the batch on the storage write", async () => {
+				const logging = new EntityStorageLoggingConnector({
+					config: { batchSize: 2, batchIntervalMs: 0 }
+				});
+
+				const setBatch = storage.setBatch.bind(storage);
+				vi.spyOn(storage, "setBatch").mockImplementation(async entities => {
+					await new Promise(resolve => setTimeout(resolve, 300));
+					await setBatch(entities);
+				});
+
+				await logInContext(logging, { level: LogLevel.Info, source: "test", message: "one" });
+
+				const start = Date.now();
+				await logInContext(logging, { level: LogLevel.Info, source: "test", message: "two" });
+				expect(Date.now() - start).toBeLessThan(150);
+
+				// stop still waits for the detached write, so nothing is lost.
+				await logging.stop();
 				const result = await storage.query(undefined, undefined, undefined, undefined, 100);
-				expect(result.entities).toHaveLength(4);
+				expect(result.entities).toHaveLength(2);
+			});
+
+			test("enqueues a concurrent log call while a write is in progress", async () => {
+				const logging = new EntityStorageLoggingConnector({
+					config: { batchSize: 2, batchIntervalMs: 0 }
+				});
+
+				const setBatch = storage.setBatch.bind(storage);
+				vi.spyOn(storage, "setBatch").mockImplementation(async entities => {
+					await new Promise(resolve => setTimeout(resolve, 300));
+					await setBatch(entities);
+				});
+
+				await logInContext(logging, { level: LogLevel.Info, source: "test", message: "one" });
+				await logInContext(logging, { level: LogLevel.Info, source: "test", message: "two" });
+
+				// The threshold write is in flight and in flight, but the entry must
+				// still be accepted rather than rejected with a mutex lock timeout.
+				await expect(
+					logInContext(logging, { level: LogLevel.Info, source: "test", message: "three" })
+				).resolves.toBeUndefined();
+
+				await logging.stop();
+				const result = await storage.query(undefined, undefined, undefined, undefined, 100);
+				expect(result.entities).toHaveLength(3);
+			});
+
+			test("flush resolves while entries keep arriving during the write", async () => {
+				const logging = new EntityStorageLoggingConnector({
+					config: { batchSize: 2, batchIntervalMs: 0 }
+				});
+
+				const setBatch = storage.setBatch.bind(storage);
+				vi.spyOn(storage, "setBatch").mockImplementation(async entities => {
+					await new Promise(resolve => setTimeout(resolve, 50));
+					await setBatch(entities);
+				});
+
+				await logInContext(logging, { level: LogLevel.Info, source: "test", message: "seed-1" });
+				await logInContext(logging, { level: LogLevel.Info, source: "test", message: "seed-2" });
+
+				// Keep logging faster than the writes complete, for far longer than the flush
+				// should need. A flush that drained until the cache emptied would be held here
+				// for the whole 400ms rather than writing only the entries it took.
+				const producerStart = Date.now();
+				const producer = (async () => {
+					for (let elapsed = 0; elapsed < 400; elapsed = Date.now() - producerStart) {
+						await logInContext(logging, {
+							level: LogLevel.Info,
+							source: "test",
+							message: `extra-${elapsed}`
+						});
+						await new Promise(resolve => setTimeout(resolve, 1));
+					}
+				})();
+
+				const start = Date.now();
+				await logging.flush();
+				expect(Date.now() - start).toBeLessThan(200);
+
+				await producer;
+				await logging.stop();
 			});
 
 			// In multi-tenant mode without a tenant context the perTenant flag is set on each
@@ -161,11 +284,393 @@ describe("EntityStorageLoggingConnector", () => {
 				await logInContext(logging, { level: LogLevel.Info, source: "test", message: "two" });
 				await logInContext(logging, { level: LogLevel.Info, source: "test", message: "three" });
 
+				// Wait for the detached threshold flush to finish before inspecting the routing.
+				await logging.flush();
+
 				if (multiTenant && !inTenantContext) {
 					expect(executeSpy).toHaveBeenCalledTimes(1);
 				} else {
 					expect(executeSpy).not.toHaveBeenCalled();
 				}
+			});
+		});
+
+		describe("overload", () => {
+			let originalSetBatch: (entities: LogEntry[]) => Promise<void>;
+
+			beforeEach(() => {
+				originalSetBatch = storage.setBatch.bind(storage);
+			});
+
+			// Replace setBatch with an instrumented version so the tests can assert on what
+			// reached storage, how many writes overlapped, and how entries were batched.
+			function instrumentWrites(
+				delayMs: number,
+				failures = 0
+			): {
+				writtenIds: string[];
+				maxConcurrent: number;
+				calls: number;
+				batchSizes: number[];
+			} {
+				const stats = {
+					writtenIds: [] as string[],
+					maxConcurrent: 0,
+					calls: 0,
+					batchSizes: [] as number[]
+				};
+				let concurrent = 0;
+				let remainingFailures = failures;
+
+				vi.spyOn(storage, "setBatch").mockImplementation(async (entities: LogEntry[]) => {
+					concurrent++;
+					stats.maxConcurrent = Math.max(stats.maxConcurrent, concurrent);
+					stats.calls++;
+					stats.batchSizes.push(entities.length);
+					try {
+						if (delayMs > 0) {
+							await new Promise(resolve => setTimeout(resolve, delayMs));
+						}
+						if (remainingFailures > 0) {
+							remainingFailures--;
+							throw new Error("write failed");
+						}
+						await originalSetBatch(entities);
+						for (const entity of entities) {
+							stats.writtenIds.push(entity.id);
+						}
+					} finally {
+						concurrent--;
+					}
+				});
+
+				return stats;
+			}
+
+			// Yield to the macrotask queue so a threshold flush scheduled on a zero delay timer
+			// actually starts. Without this the test stays in an unbroken chain of microtasks and
+			// the write never begins, so nothing is ever in flight.
+			async function startPendingFlush(): Promise<void> {
+				await new Promise(resolve => setTimeout(resolve, 0));
+			}
+
+			async function storedCount(): Promise<number> {
+				let total = 0;
+				let cursor: string | undefined;
+				do {
+					const page = await storage.query(undefined, undefined, ["id"], cursor, 1000);
+					total += page.entities.length;
+					cursor = page.cursor;
+				} while (!Is.empty(cursor));
+				return total;
+			}
+
+			// Log count entries, optionally yielding to the macrotask queue every yieldEvery
+			// entries so the threshold flushes actually start and writes overlap the logging,
+			// as they would in an application rather than in one unbroken await chain.
+			async function logMany(
+				logging: EntityStorageLoggingConnector,
+				count: number,
+				prefix: string,
+				yieldEvery = 0
+			): Promise<void> {
+				for (let i = 0; i < count; i++) {
+					await logInContext(logging, {
+						level: LogLevel.Info,
+						source: "test",
+						message: `${prefix}-${i}`
+					});
+					if (yieldEvery > 0 && (i + 1) % yieldEvery === 0) {
+						await startPendingFlush();
+					}
+				}
+			}
+
+			test("stores every entry when logging far outpaces the storage writes", async () => {
+				const stats = instrumentWrites(5);
+				const logging = new EntityStorageLoggingConnector({
+					config: { batchSize: 10, batchIntervalMs: 0 }
+				});
+
+				await logMany(logging, 200, "burst", 5);
+				await logging.stop();
+
+				expect(await storedCount()).toBe(200);
+				expect(new Set(stats.writtenIds).size).toBe(stats.writtenIds.length);
+			});
+
+			test("writes each entry exactly once under many concurrent flushes", async () => {
+				const stats = instrumentWrites(10);
+				const logging = new EntityStorageLoggingConnector({
+					config: { batchSize: 5, batchIntervalMs: 0 }
+				});
+
+				await logMany(logging, 60, "concurrent", 4);
+				await Promise.all(Array.from({ length: 12 }, async () => logging.flush()));
+				await logging.stop();
+
+				expect(stats.writtenIds).toHaveLength(60);
+				expect(new Set(stats.writtenIds).size).toBe(60);
+				expect(await storedCount()).toBe(60);
+			});
+
+			test("never runs two storage writes at the same time", async () => {
+				const stats = instrumentWrites(15);
+				const logging = new EntityStorageLoggingConnector({
+					config: { batchSize: 4, batchIntervalMs: 0 }
+				});
+
+				await logMany(logging, 40, "serial", 4);
+				await Promise.all(Array.from({ length: 8 }, async () => logging.flush()));
+				await logging.stop();
+
+				expect(stats.calls).toBeGreaterThan(1);
+				expect(stats.maxConcurrent).toBe(1);
+			});
+
+			test("resolves a crowd of flush calls waiting on one slow write", async () => {
+				const stats = instrumentWrites(80);
+				const logging = new EntityStorageLoggingConnector({
+					config: { batchSize: 2, batchIntervalMs: 0 }
+				});
+
+				await logMany(logging, 2, "slow");
+				await startPendingFlush();
+
+				const start = Date.now();
+				await Promise.all(Array.from({ length: 25 }, async () => logging.flush()));
+
+				// Every waiter shares the same passes, so this is bounded by a couple of writes
+				// rather than by the number of callers.
+				expect(Date.now() - start).toBeLessThan(500);
+
+				await logging.stop();
+				expect(await storedCount()).toBe(2);
+				expect(stats.maxConcurrent).toBe(1);
+			});
+
+			test("coalesces flush calls arriving during a write into a single follow-up pass", async () => {
+				const stats = instrumentWrites(80);
+				const logging = new EntityStorageLoggingConnector({
+					config: { batchSize: 100, batchIntervalMs: 0 }
+				});
+
+				await logMany(logging, 1, "in-flight");
+				const running = logging.flush();
+				await startPendingFlush();
+
+				// None of these entries are in the running pass's snapshot, so one further pass has
+				// to cover them, and the waiters must share it rather than queue one each.
+				await logMany(logging, 5, "queued");
+				await Promise.all([running, ...Array.from({ length: 25 }, async () => logging.flush())]);
+
+				expect(stats.calls).toBe(2);
+				expect(stats.batchSizes).toEqual([1, 5]);
+				expect(await storedCount()).toBe(6);
+			});
+
+			test("keeps log calls fast while the storage writes are slow", async () => {
+				instrumentWrites(50);
+				const logging = new EntityStorageLoggingConnector({
+					config: { batchSize: 5, batchIntervalMs: 0 }
+				});
+
+				let slowest = 0;
+				for (let i = 0; i < 60; i++) {
+					const start = Date.now();
+					await logInContext(logging, {
+						level: LogLevel.Info,
+						source: "test",
+						message: `fast-${i}`
+					});
+					slowest = Math.max(slowest, Date.now() - start);
+					// Let the threshold write start, so most of these calls are made while a
+					// 50ms write is in flight.
+					await startPendingFlush();
+				}
+
+				expect(slowest).toBeLessThan(50);
+
+				await logging.stop();
+				expect(await storedCount()).toBe(60);
+			});
+
+			test("loses nothing when logs, flushes and queries interleave", async () => {
+				const stats = instrumentWrites(3);
+				const logging = new EntityStorageLoggingConnector({
+					config: { batchSize: 7, batchIntervalMs: 0 }
+				});
+
+				const work: Promise<unknown>[] = [];
+				for (let i = 0; i < 120; i++) {
+					work.push(
+						logInContext(logging, {
+							level: LogLevel.Info,
+							source: "test",
+							message: `mixed-${i}`
+						})
+					);
+					if (i % 10 === 0) {
+						work.push(logging.flush());
+					}
+					if (i % 25 === 0) {
+						work.push(logging.query());
+					}
+				}
+				await Promise.all(work);
+				await logging.stop();
+
+				expect(await storedCount()).toBe(120);
+				expect(new Set(stats.writtenIds).size).toBe(stats.writtenIds.length);
+				expect(stats.maxConcurrent).toBe(1);
+			});
+
+			test("handles a burst of concurrent log calls far larger than the batch size", async () => {
+				const stats = instrumentWrites(2);
+				const logging = new EntityStorageLoggingConnector({
+					config: { batchSize: 10, batchIntervalMs: 0 }
+				});
+
+				await Promise.all(
+					Array.from({ length: 500 }, async (value, i) =>
+						logInContext(logging, {
+							level: LogLevel.Info,
+							source: "test",
+							message: `flood-${i}`
+						})
+					)
+				);
+				await logging.stop();
+
+				expect(await storedCount()).toBe(500);
+				expect(new Set(stats.writtenIds).size).toBe(500);
+			});
+
+			test("stop stores everything logged before it was called", async () => {
+				instrumentWrites(40);
+				const logging = new EntityStorageLoggingConnector({
+					config: { batchSize: 5, batchIntervalMs: 0 }
+				});
+
+				await logMany(logging, 5, "pre");
+				await startPendingFlush();
+				// The threshold write is now in flight; these land while it runs.
+				await logMany(logging, 4, "during");
+
+				await logging.stop();
+
+				expect(await storedCount()).toBe(9);
+			});
+
+			test("flush writes entries logged while an earlier write was in flight", async () => {
+				const stats = instrumentWrites(60);
+				const logging = new EntityStorageLoggingConnector({
+					config: { batchSize: 2, batchIntervalMs: 0 }
+				});
+
+				await logMany(logging, 2, "first");
+				await startPendingFlush();
+
+				// Cached while the first write is still running, so the flush below has to wait
+				// for that write and then run a pass of its own to cover these.
+				await logMany(logging, 3, "second");
+
+				await logging.flush();
+
+				expect(await storedCount()).toBe(5);
+				expect(stats.maxConcurrent).toBe(1);
+			});
+
+			test("retries and stores everything after repeated write failures", async () => {
+				instrumentWrites(0, 2);
+				const logging = new EntityStorageLoggingConnector({
+					config: { batchSize: 100, batchIntervalMs: 0 }
+				});
+
+				await logMany(logging, 10, "retry");
+
+				await logging.flush();
+				expect(await storedCount()).toBe(0);
+
+				await logging.flush();
+				expect(await storedCount()).toBe(0);
+
+				await logging.flush();
+				expect(await storedCount()).toBe(10);
+			});
+
+			test("caps the cache at maxCacheSize when logging outruns the flushes", async () => {
+				instrumentWrites(0);
+				// Nothing drains the cache on its own, so every entry beyond the limit has to be
+				// dropped as it is logged rather than accumulating.
+				const logging = new EntityStorageLoggingConnector({
+					config: { batchSize: 1000, batchIntervalMs: 0, maxCacheSize: 25 }
+				});
+
+				await logMany(logging, 300, "capped");
+				await logging.flush();
+
+				expect(await storedCount()).toBe(25);
+			});
+
+			test("caps the cache at maxCacheSize while every write fails", async () => {
+				instrumentWrites(0, Number.MAX_SAFE_INTEGER);
+				const logging = new EntityStorageLoggingConnector({
+					config: { batchSize: 10, batchIntervalMs: 0, maxCacheSize: 25 }
+				});
+
+				await logMany(logging, 300, "failing");
+				await logging.flush();
+
+				// Let the writes succeed again. Only what survived the trim can be written, which
+				// shows the cache did not grow with all 300 entries.
+				instrumentWrites(0);
+				await logging.flush();
+
+				const stored = await storedCount();
+				expect(stored).toBeGreaterThan(0);
+				expect(stored).toBeLessThanOrEqual(25);
+			});
+
+			test("survives flush, query and stop being called concurrently", async () => {
+				const stats = instrumentWrites(20);
+				const logging = new EntityStorageLoggingConnector({
+					config: { batchSize: 8, batchIntervalMs: 0 }
+				});
+
+				await logMany(logging, 40, "race", 6);
+				await startPendingFlush();
+
+				await Promise.all([logging.flush(), logging.stop(), logging.flush(), logging.query()]);
+
+				expect(await storedCount()).toBe(40);
+				expect(new Set(stats.writtenIds).size).toBe(stats.writtenIds.length);
+				expect(stats.maxConcurrent).toBe(1);
+			});
+
+			test("timer and threshold flushes together write every entry once", async () => {
+				const stats = instrumentWrites(5);
+				const logging = new EntityStorageLoggingConnector({
+					config: { batchSize: 6, batchIntervalMs: 10 }
+				});
+				await logging.start();
+
+				for (let i = 0; i < 80; i++) {
+					await logInContext(logging, {
+						level: LogLevel.Info,
+						source: "test",
+						message: `both-${i}`
+					});
+					if (i % 7 === 0) {
+						await new Promise(resolve => setTimeout(resolve, 12));
+					}
+				}
+
+				await logging.stop();
+
+				expect(await storedCount()).toBe(80);
+				expect(new Set(stats.writtenIds).size).toBe(80);
+				expect(stats.maxConcurrent).toBe(1);
 			});
 		});
 
@@ -483,8 +988,12 @@ describe("EntityStorageLoggingConnector", () => {
 
 				await vi.advanceTimersByTimeAsync(60000);
 
-				// 5 old entries collected across batches, then removed in a single call
-				expect(removeBatchSpy).toHaveBeenCalledTimes(1);
+				// 5 old entries removed in chunks of retentionBatchSize, never in one call
+				expect(removeBatchSpy).toHaveBeenCalledTimes(3);
+				for (const call of removeBatchSpy.mock.calls) {
+					expect((call[0] as string[]).length).toBeLessThanOrEqual(2);
+				}
+				expect(removeBatchSpy.mock.calls.flatMap(call => call[0] as string[])).toHaveLength(5);
 
 				await logging.stop();
 			});
@@ -696,6 +1205,160 @@ describe("EntityStorageLoggingConnector", () => {
 
 				await logging.stop();
 			});
+		});
+	});
+
+	// A real multi-tenant platform component fans execute() across every tenant, so routing a
+	// tenant scoped entry through it leaks that entry into the other tenants' partitions.
+	describe("multi-tenant partitioning", () => {
+		const tenants = ["tenant-a", "tenant-b"];
+		let partitionedStorage: MemoryEntityStorageConnector<LogEntry>;
+
+		beforeEach(() => {
+			partitionedStorage = new MemoryEntityStorageConnector<LogEntry>({
+				entitySchema: nameof<LogEntry>(),
+				partitionContextIds: [ContextIdKeys.Tenant],
+				config: { storageKey: "log-entry" }
+			});
+			EntityStorageConnectorFactory.register("log-entry", () => partitionedStorage);
+
+			ComponentFactory.register("platform", () => ({
+				className: () => "FanOutPlatformComponent",
+				isMultiTenant: () => true,
+				execute: async (method: () => Promise<undefined | boolean> | Promise<void>) => {
+					for (const tenant of tenants) {
+						await ContextIdStore.run({ [ContextIdKeys.Tenant]: tenant }, method);
+					}
+				},
+				getLocalOriginContext: async () => undefined
+			}));
+		});
+
+		afterEach(async () => {
+			await partitionedStorage.teardown();
+		});
+
+		async function queryAsTenant(tenant: string): Promise<Partial<LogEntry>[]> {
+			const result = await ContextIdStore.run({ [ContextIdKeys.Tenant]: tenant }, async () =>
+				partitionedStorage.query(undefined, undefined, undefined, undefined, 100)
+			);
+			return result.entities;
+		}
+
+		describe.each([
+			{ label: "batching disabled", config: { batchSize: 0, batchIntervalMs: 0 } },
+			{ label: "batching enabled", config: { batchSize: 1000, batchIntervalMs: 0 } }
+		])("$label", ({ config }) => {
+			test("writes an entry logged in a tenant context to that tenant only", async () => {
+				const logging = new EntityStorageLoggingConnector({ config });
+
+				await ContextIdStore.run({ [ContextIdKeys.Tenant]: "tenant-a" }, async () =>
+					logging.log({ level: LogLevel.Info, source: "test", message: "tenant-a-only" })
+				);
+				await logging.flush();
+
+				const tenantA = await queryAsTenant("tenant-a");
+				expect(tenantA.map(entity => entity.message)).toEqual(["tenant-a-only"]);
+				expect(await queryAsTenant("tenant-b")).toHaveLength(0);
+			});
+
+			test("fans an entry logged without a tenant context out to every tenant", async () => {
+				const logging = new EntityStorageLoggingConnector({ config });
+
+				await logging.log({ level: LogLevel.Info, source: "test", message: "all-tenants" });
+				await logging.flush();
+
+				for (const tenant of tenants) {
+					const entities = await queryAsTenant(tenant);
+					expect(entities.map(entity => entity.message)).toEqual(["all-tenants"]);
+				}
+			});
+		});
+	});
+
+	describe("log validation", () => {
+		let logging: EntityStorageLoggingConnector;
+
+		beforeEach(() => {
+			ComponentFactory.register("platform", () => makePlatformComponent(false));
+			logging = new EntityStorageLoggingConnector({
+				config: { batchSize: 0, batchIntervalMs: 0 }
+			});
+		});
+
+		test("rejects an entry with no message without storing anything", async () => {
+			await expect(
+				logging.log({ level: LogLevel.Info, source: "test" } as never)
+			).rejects.toMatchObject({
+				name: GuardError.CLASS_NAME,
+				message: "guard.string",
+				properties: { property: "logEntry.message" }
+			});
+
+			const stored = await storage.query();
+			expect(stored.entities).toHaveLength(0);
+		});
+
+		test("rejects an entry with a non-string source", async () => {
+			await expect(
+				logging.log({ level: LogLevel.Info, source: 42, message: "hello" } as never)
+			).rejects.toMatchObject({
+				name: GuardError.CLASS_NAME,
+				message: "guard.string",
+				properties: { property: "logEntry.source" }
+			});
+		});
+
+		test("rejects an entry with an unknown level", async () => {
+			await expect(
+				logging.log({ level: "critical", source: "test", message: "hello" } as never)
+			).rejects.toMatchObject({
+				name: GuardError.CLASS_NAME,
+				message: "guard.arrayOneOf",
+				properties: { property: "logEntry.level" }
+			});
+		});
+
+		test("truncates a source and message that exceed the schema bounds", async () => {
+			const schema = EntitySchemaHelper.getSchema(LogEntry);
+			const maxSource = schema.properties?.find(p => p.property === "source")?.maxLength as number;
+			const maxMessage = schema.properties?.find(p => p.property === "message")
+				?.maxLength as number;
+
+			await logging.log({
+				level: LogLevel.Info,
+				source: "s".repeat(maxSource + 100),
+				message: "m".repeat(maxMessage + 100)
+			});
+
+			const stored = await storage.query();
+			expect(stored.entities).toHaveLength(1);
+			expect(stored.entities[0].source).toHaveLength(maxSource);
+			expect(stored.entities[0].message).toHaveLength(maxMessage);
+		});
+
+		test("truncates an over-long source and message on a flattened error", async () => {
+			const schema = EntitySchemaHelper.getSchema(LogEntry);
+			const maxSource = schema.properties?.find(p => p.property === "source")?.maxLength as number;
+			const maxMessage = schema.properties?.find(p => p.property === "message")
+				?.maxLength as number;
+
+			await logging.log({
+				level: LogLevel.Error,
+				source: "test",
+				message: "failed",
+				error: {
+					name: "TestError",
+					source: "e".repeat(maxSource + 100),
+					message: "x".repeat(maxMessage + 100)
+				}
+			});
+
+			const stored = await storage.query();
+			expect(stored.entities).toHaveLength(1);
+			const errors = stored.entities[0].error as { source?: string; message: string }[];
+			expect(errors[0].source).toHaveLength(maxSource);
+			expect(errors[0].message).toHaveLength(maxMessage);
 		});
 	});
 });

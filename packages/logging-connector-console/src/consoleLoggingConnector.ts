@@ -1,13 +1,13 @@
 // Copyright 2024 IOTA Stiftung.
 // SPDX-License-Identifier: Apache-2.0.
-import { Guards, I18n, Is, ObjectHelper } from "@twin.org/core";
+import { Guards, I18n, Is, ObjectHelper } from "@3sixty/core";
 import {
 	LogEntryHelper,
 	LogLevel,
 	type ILogEntry,
 	type ILoggingConnector
-} from "@twin.org/logging-models";
-import { nameof } from "@twin.org/nameof";
+} from "@3sixty/logging-models";
+import { nameof } from "@3sixty/nameof";
 import type { IConsoleLoggingConnectorConstructorOptions } from "./models/IConsoleLoggingConnectorConstructorOptions.js";
 
 /**
@@ -55,6 +55,12 @@ export class ConsoleLoggingConnector implements ILoggingConnector {
 	private readonly _hideGroups: boolean;
 
 	/**
+	 * Disable colour in the output.
+	 * @internal
+	 */
+	private readonly _disableColor: boolean;
+
+	/**
 	 * The last group identity.
 	 * @internal
 	 */
@@ -68,6 +74,7 @@ export class ConsoleLoggingConnector implements ILoggingConnector {
 		this._levels = options?.config?.levels ?? Object.values(LogLevel);
 		this._translateMessages = options?.config?.translateMessages ?? false;
 		this._hideGroups = options?.config?.hideGroups ?? false;
+		this._disableColor = options?.config?.disableColor ?? false;
 	}
 
 	/**
@@ -85,6 +92,14 @@ export class ConsoleLoggingConnector implements ILoggingConnector {
 	 */
 	public async log(logEntry: ILogEntry): Promise<void> {
 		Guards.object<ILogEntry>(ConsoleLoggingConnector.CLASS_NAME, nameof(logEntry), logEntry);
+		Guards.arrayOneOf(
+			ConsoleLoggingConnector.CLASS_NAME,
+			nameof(logEntry.level),
+			logEntry.level,
+			Object.values(LogLevel)
+		);
+		Guards.string(ConsoleLoggingConnector.CLASS_NAME, nameof(logEntry.source), logEntry.source);
+		Guards.string(ConsoleLoggingConnector.CLASS_NAME, nameof(logEntry.message), logEntry.message);
 
 		if (this._levels.includes(logEntry.level)) {
 			logEntry.ts ??= Date.now();
@@ -125,6 +140,7 @@ export class ConsoleLoggingConnector implements ILoggingConnector {
 				params.push(logEntry.error);
 			}
 
+			// eslint-disable-next-line no-restricted-syntax
 			globalThis.console[logEntry.level](...params);
 		}
 	}
@@ -174,6 +190,9 @@ export class ConsoleLoggingConnector implements ILoggingConnector {
 	 * @internal
 	 */
 	private colorize(message: string, color: "blue" | "cyan" | "green" | "magenta" | "red"): string {
+		if (this._disableColor) {
+			return message;
+		}
 		// eslint-disable-next-line unicorn/escape-case
 		return `\x1b[${ConsoleLoggingConnector._COLORS[color]}m${message}\x1b[39m`;
 	}
@@ -187,9 +206,14 @@ export class ConsoleLoggingConnector implements ILoggingConnector {
 		if (this._lastGroup !== group) {
 			this._lastGroup = group;
 			if (this._lastGroup) {
+				// eslint-disable-next-line no-restricted-syntax
 				globalThis.console.groupEnd();
 			}
-			if (group.length > 0) {
+			if (group.length > 0 && this._disableColor) {
+				// eslint-disable-next-line no-restricted-syntax
+				globalThis.console.group(group);
+			} else if (group.length > 0) {
+				// eslint-disable-next-line no-restricted-syntax
 				globalThis.console.group(
 					`%c${group}`,
 					`color: #ffffff; background: ${this.stringToColor(

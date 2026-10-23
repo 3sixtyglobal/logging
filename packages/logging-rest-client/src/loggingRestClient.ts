@@ -1,18 +1,18 @@
 // Copyright 2024 IOTA Stiftung.
 // SPDX-License-Identifier: Apache-2.0.
-import { BaseRestClient } from "@twin.org/api-core";
-import type { IBaseRestClientConfig, IOkResponse } from "@twin.org/api-models";
-import { Coerce, Guards } from "@twin.org/core";
-import type {
-	ILogEntry,
-	ILoggingComponent,
-	ILoggingCreateRequest,
-	ILoggingListRequest,
-	ILoggingListResponse,
+import { BaseRestClient } from "@3sixty/api-core";
+import type { IBaseRestClientConfig, IOkResponse } from "@3sixty/api-models";
+import { Coerce, Guards } from "@3sixty/core";
+import {
+	type ILogEntry,
+	type ILoggingComponent,
+	type ILoggingCreateRequest,
+	type ILoggingListRequest,
+	type ILoggingListResponse,
 	LogLevel
-} from "@twin.org/logging-models";
-import { nameof } from "@twin.org/nameof";
-import { HttpMethod } from "@twin.org/web";
+} from "@3sixty/logging-models";
+import { nameof } from "@3sixty/nameof";
+import { HttpMethod } from "@3sixty/web";
 
 /**
  * Client for performing logging through to REST endpoints.
@@ -46,6 +46,14 @@ export class LoggingRestClient extends BaseRestClient implements ILoggingCompone
 	 */
 	public async log(logEntry: ILogEntry): Promise<void> {
 		Guards.object<ILogEntry>(LoggingRestClient.CLASS_NAME, nameof(logEntry), logEntry);
+		Guards.arrayOneOf(
+			LoggingRestClient.CLASS_NAME,
+			nameof(logEntry.level),
+			logEntry.level,
+			Object.values(LogLevel)
+		);
+		Guards.string(LoggingRestClient.CLASS_NAME, nameof(logEntry.source), logEntry.source);
+		Guards.string(LoggingRestClient.CLASS_NAME, nameof(logEntry.message), logEntry.message);
 
 		await this.fetch<ILoggingCreateRequest, IOkResponse>("/", HttpMethod.POST, {
 			body: logEntry

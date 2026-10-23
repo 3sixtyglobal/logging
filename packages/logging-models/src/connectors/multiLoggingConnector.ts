@@ -1,8 +1,8 @@
 // Copyright 2024 IOTA Stiftung.
 // SPDX-License-Identifier: Apache-2.0.
-import { Guards, Is } from "@twin.org/core";
-import type { EntityCondition, SortDirection } from "@twin.org/entity";
-import { nameof } from "@twin.org/nameof";
+import { Guards, Is } from "@3sixty/core";
+import type { EntityCondition, SortDirection } from "@3sixty/entity";
+import { nameof } from "@3sixty/nameof";
 import { LoggingConnectorFactory } from "../factories/loggingConnectorFactory.js";
 import type { ILogEntry } from "../models/ILogEntry.js";
 import type { ILoggingConnector } from "../models/ILoggingConnector.js";
@@ -67,6 +67,14 @@ export class MultiLoggingConnector implements ILoggingConnector {
 	 */
 	public async log(logEntry: ILogEntry): Promise<void> {
 		Guards.object<ILogEntry>(MultiLoggingConnector.CLASS_NAME, nameof(logEntry), logEntry);
+		Guards.arrayOneOf(
+			MultiLoggingConnector.CLASS_NAME,
+			nameof(logEntry.level),
+			logEntry.level,
+			Object.values(LogLevel)
+		);
+		Guards.string(MultiLoggingConnector.CLASS_NAME, nameof(logEntry.source), logEntry.source);
+		Guards.string(MultiLoggingConnector.CLASS_NAME, nameof(logEntry.message), logEntry.message);
 
 		if (this._levels.includes(logEntry.level)) {
 			logEntry.ts ??= Date.now();
