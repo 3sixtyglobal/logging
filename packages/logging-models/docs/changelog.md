@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.20.0-next.2](https://github.com/3sixtyglobal/logging/compare/logging-models-v0.20.0-next.1...logging-models-v0.20.0-next.2) (2026-10-26)
+
+
+### Features
+
+* release to next [skip ci] ([#17](https://github.com/3sixtyglobal/logging/issues/17)) ([bf3d420](https://github.com/3sixtyglobal/logging/commit/bf3d420e50a0206131d2560af8e7e0aae2c0fe6c))
+
 ## [0.20.0-next.1](https://github.com/3sixtyglobal/logging/compare/logging-models-v0.20.0-next.0...logging-models-v0.20.0-next.1) (2026-10-23)
 
 
