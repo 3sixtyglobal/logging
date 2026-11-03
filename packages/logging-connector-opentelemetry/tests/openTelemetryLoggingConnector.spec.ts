@@ -9,6 +9,11 @@ import { LoggerProvider } from "@opentelemetry/sdk-logs";
 import { TEST_OTLP_ENDPOINT_LOGS, TEST_OTLP_GRAFANA } from "./setupTestEnv.js";
 import { OpenTelemetryLoggingConnector } from "../src/openTelemetryLoggingConnector.js";
 
+vi.mock("@opentelemetry/resources", async importOriginal => {
+	const actual = await importOriginal<typeof opentelemetryResources>();
+	return { ...actual, resourceFromAttributes: vi.fn(actual.resourceFromAttributes) };
+});
+
 async function makeConnector(
 	config: { [key: string]: unknown } = {}
 ): Promise<OpenTelemetryLoggingConnector> {
@@ -338,7 +343,7 @@ describe("OpenTelemetryLoggingConnector", () => {
 	});
 
 	test("maps tenant and node context IDs to semantic service resource attributes", async () => {
-		const resourceSpy = vi.spyOn(opentelemetryResources, "resourceFromAttributes");
+		const resourceSpy = vi.mocked(opentelemetryResources.resourceFromAttributes);
 		const connector = await makeConnector({
 			resourceAttributes: { "service.name": "my-service" }
 		});
