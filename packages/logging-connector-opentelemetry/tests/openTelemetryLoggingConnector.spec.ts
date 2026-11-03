@@ -1,7 +1,7 @@
 // Copyright 2026 IOTA Stiftung.
 // SPDX-License-Identifier: Apache-2.0.
 import { ContextIdKeys, ContextIdStore } from "@3sixty/context";
-import { GuardError } from "@3sixty/core";
+import { DurationConstants, GuardError } from "@3sixty/core";
 import { LogLevel } from "@3sixty/logging-models";
 import { type LogRecord, SeverityNumber } from "@opentelemetry/api-logs";
 import * as opentelemetryResources from "@opentelemetry/resources";
@@ -410,7 +410,7 @@ describe("OpenTelemetryLoggingConnector", () => {
 
 describe("OpenTelemetryLoggingConnector (live OTLP)", () => {
 	const SERVICE_NAME = "otel-connector-integration-test";
-	const LOKI_TIMEOUT_MS = 15_000;
+	const LOKI_TIMEOUT_MS = 15 * DurationConstants.MsPerSecond;
 
 	function liveConnector(): OpenTelemetryLoggingConnector {
 		return new OpenTelemetryLoggingConnector({
@@ -430,7 +430,7 @@ describe("OpenTelemetryLoggingConnector (live OTLP)", () => {
 				`${TEST_OTLP_GRAFANA}/api/datasources/proxy/uid/loki/loki/api/v1/query_range`
 			);
 			url.searchParams.set("query", query);
-			url.searchParams.set("start", `${nowMs - 60_000}000000`);
+			url.searchParams.set("start", `${nowMs - DurationConstants.MsPerMinute}000000`);
 			url.searchParams.set("end", `${nowMs}000000`);
 			url.searchParams.set("limit", "1");
 			const resp = await fetch(url.toString(), {

@@ -7,6 +7,7 @@ import {
 	Coerce,
 	ComponentFactory,
 	Converter,
+	DurationConstants,
 	Guards,
 	type IError,
 	Is,
@@ -53,7 +54,7 @@ export class EntityStorageLoggingConnector implements ILoggingConnector {
 	/**
 	 * Default interval in milliseconds between automatic flushes.
 	 */
-	public static readonly DEFAULT_BATCH_INTERVAL_MS: number = 5000;
+	public static readonly DEFAULT_BATCH_INTERVAL_MS: number = 5 * DurationConstants.MsPerSecond;
 
 	/**
 	 * Default maximum number of entries to hold in the in-memory cache.
@@ -63,7 +64,7 @@ export class EntityStorageLoggingConnector implements ILoggingConnector {
 	/**
 	 * Default interval in milliseconds between retention cleanup runs, 5 minutes.
 	 */
-	public static readonly DEFAULT_RETENTION_INTERVAL_MS: number = 300000;
+	public static readonly DEFAULT_RETENTION_INTERVAL_MS: number = 5 * DurationConstants.MsPerMinute;
 
 	/**
 	 * Default age threshold in milliseconds; entries older than this are deleted, 2 days.

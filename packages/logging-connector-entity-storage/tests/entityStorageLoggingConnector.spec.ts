@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0.
 import type { IPlatformComponent } from "@3sixty/api-models";
 import { ContextIdKeys, ContextIdStore } from "@3sixty/context";
-import { ComponentFactory, GuardError, Is } from "@3sixty/core";
+import { ComponentFactory, DurationConstants, GuardError, Is } from "@3sixty/core";
 import { EntitySchemaHelper } from "@3sixty/entity";
 import { MemoryEntityStorageConnector } from "@3sixty/entity-storage-connector-memory";
 import { EntityStorageConnectorFactory } from "@3sixty/entity-storage-models";
@@ -724,7 +724,7 @@ describe("EntityStorageLoggingConnector", () => {
 
 			test("flushes cache after the configured interval elapses", async () => {
 				const logging = new EntityStorageLoggingConnector({
-					config: { batchSize: 0, batchIntervalMs: 1000 }
+					config: { batchSize: 0, batchIntervalMs: DurationConstants.MsPerSecond }
 				});
 				await logging.start();
 				await logInContext(logging, { level: LogLevel.Info, source: "test", message: "timed" });
@@ -732,7 +732,7 @@ describe("EntityStorageLoggingConnector", () => {
 				const before = await storage.query(undefined, undefined, undefined, undefined, 100);
 				expect(before.entities).toHaveLength(0);
 
-				await vi.advanceTimersByTimeAsync(1000);
+				await vi.advanceTimersByTimeAsync(DurationConstants.MsPerSecond);
 
 				const after = await storage.query(undefined, undefined, undefined, undefined, 100);
 				expect(after.entities).toHaveLength(1);
@@ -742,17 +742,17 @@ describe("EntityStorageLoggingConnector", () => {
 
 			test("re-queues entries and keeps timer running after a write exception", async () => {
 				const logging = new EntityStorageLoggingConnector({
-					config: { batchSize: 0, batchIntervalMs: 1000 }
+					config: { batchSize: 0, batchIntervalMs: DurationConstants.MsPerSecond }
 				});
 				await logging.start();
 
 				vi.spyOn(storage, "setBatch").mockRejectedValueOnce(new Error("Storage unavailable"));
 				await logInContext(logging, { level: LogLevel.Info, source: "test", message: "fail" });
-				await vi.advanceTimersByTimeAsync(1000);
+				await vi.advanceTimersByTimeAsync(DurationConstants.MsPerSecond);
 
 				// "fail" entry was re-queued; "ok" is added after the failed flush
 				await logInContext(logging, { level: LogLevel.Info, source: "test", message: "ok" });
-				await vi.advanceTimersByTimeAsync(1000);
+				await vi.advanceTimersByTimeAsync(DurationConstants.MsPerSecond);
 
 				const result = await storage.query(undefined, undefined, undefined, undefined, 100);
 				// Both entries written on the second flush (re-queued "fail" + "ok")
@@ -763,7 +763,7 @@ describe("EntityStorageLoggingConnector", () => {
 
 			test("starts timer on first log call after explicit start", async () => {
 				const logging = new EntityStorageLoggingConnector({
-					config: { batchSize: 0, batchIntervalMs: 1000 }
+					config: { batchSize: 0, batchIntervalMs: DurationConstants.MsPerSecond }
 				});
 				await logging.start();
 				await logInContext(logging, { level: LogLevel.Info, source: "test", message: "lazy" });
@@ -771,7 +771,7 @@ describe("EntityStorageLoggingConnector", () => {
 				const before = await storage.query(undefined, undefined, undefined, undefined, 100);
 				expect(before.entities).toHaveLength(0);
 
-				await vi.advanceTimersByTimeAsync(1000);
+				await vi.advanceTimersByTimeAsync(DurationConstants.MsPerSecond);
 
 				const after = await storage.query(undefined, undefined, undefined, undefined, 100);
 				expect(after.entities).toHaveLength(1);
@@ -781,7 +781,7 @@ describe("EntityStorageLoggingConnector", () => {
 
 			test("trims oldest re-queued entries to maxCacheSize after flush failure", async () => {
 				const logging = new EntityStorageLoggingConnector({
-					config: { batchSize: 0, batchIntervalMs: 1000, maxCacheSize: 2 }
+					config: { batchSize: 0, batchIntervalMs: DurationConstants.MsPerSecond, maxCacheSize: 2 }
 				});
 				await logging.start();
 
@@ -794,10 +794,10 @@ describe("EntityStorageLoggingConnector", () => {
 					});
 				}
 				// First flush fails: 5 entries re-queued then trimmed to 2 (the newest)
-				await vi.advanceTimersByTimeAsync(1000);
+				await vi.advanceTimersByTimeAsync(DurationConstants.MsPerSecond);
 
 				// Second flush succeeds: only the 2 surviving entries reach storage
-				await vi.advanceTimersByTimeAsync(1000);
+				await vi.advanceTimersByTimeAsync(DurationConstants.MsPerSecond);
 
 				const result = await storage.query(undefined, undefined, undefined, undefined, 100);
 				expect(result.entities).toHaveLength(2);
@@ -807,7 +807,7 @@ describe("EntityStorageLoggingConnector", () => {
 
 			test("stop clears the timer so no further flushes occur", async () => {
 				const logging = new EntityStorageLoggingConnector({
-					config: { batchSize: 0, batchIntervalMs: 1000 }
+					config: { batchSize: 0, batchIntervalMs: DurationConstants.MsPerSecond }
 				});
 				await logging.start();
 				await logInContext(logging, { level: LogLevel.Info, source: "test", message: "one" });
@@ -816,7 +816,7 @@ describe("EntityStorageLoggingConnector", () => {
 				const afterStop = await storage.query(undefined, undefined, undefined, undefined, 100);
 				expect(afterStop.entities).toHaveLength(1);
 
-				await vi.advanceTimersByTimeAsync(5000);
+				await vi.advanceTimersByTimeAsync(5 * DurationConstants.MsPerSecond);
 
 				const afterAdvance = await storage.query(undefined, undefined, undefined, undefined, 100);
 				expect(afterAdvance.entities).toHaveLength(1);
@@ -824,6 +824,8 @@ describe("EntityStorageLoggingConnector", () => {
 		});
 
 		describe("retention", () => {
+			const TWO_HOURS_MS = 2 * DurationConstants.MsPerHour;
+
 			beforeEach(() => {
 				vi.useFakeTimers();
 			});
@@ -837,13 +839,13 @@ describe("EntityStorageLoggingConnector", () => {
 					config: {
 						batchSize: 0,
 						batchIntervalMs: 0,
-						retainForMs: 3600000,
-						retentionIntervalMs: 60000
+						retainForMs: DurationConstants.MsPerHour,
+						retentionIntervalMs: DurationConstants.MsPerMinute
 					}
 				});
 				await logging.start();
 
-				const twoHoursAgo = Date.now() - 7200000;
+				const twoHoursAgo = Date.now() - TWO_HOURS_MS;
 				await logInContext(logging, {
 					level: LogLevel.Info,
 					source: "test",
@@ -861,7 +863,7 @@ describe("EntityStorageLoggingConnector", () => {
 				const before = await storage.query(undefined, undefined, undefined, undefined, 100);
 				expect(before.entities).toHaveLength(3);
 
-				await vi.advanceTimersByTimeAsync(60000);
+				await vi.advanceTimersByTimeAsync(DurationConstants.MsPerMinute);
 
 				const after = await storage.query(undefined, undefined, undefined, undefined, 100);
 				expect(after.entities).toHaveLength(1);
@@ -875,8 +877,8 @@ describe("EntityStorageLoggingConnector", () => {
 					config: {
 						batchSize: 0,
 						batchIntervalMs: 0,
-						retainForMs: 3600000,
-						retentionIntervalMs: 60000
+						retainForMs: DurationConstants.MsPerHour,
+						retentionIntervalMs: DurationConstants.MsPerMinute
 					}
 				});
 				await logging.start();
@@ -884,7 +886,7 @@ describe("EntityStorageLoggingConnector", () => {
 				await logInContext(logging, { level: LogLevel.Info, source: "test", message: "a" });
 				await logInContext(logging, { level: LogLevel.Info, source: "test", message: "b" });
 
-				await vi.advanceTimersByTimeAsync(60000);
+				await vi.advanceTimersByTimeAsync(DurationConstants.MsPerMinute);
 
 				const result = await storage.query(undefined, undefined, undefined, undefined, 100);
 				expect(result.entities).toHaveLength(2);
@@ -899,7 +901,7 @@ describe("EntityStorageLoggingConnector", () => {
 						batchIntervalMs: 0,
 						retainForMs: 0,
 						maxEntries: 2,
-						retentionIntervalMs: 60000
+						retentionIntervalMs: DurationConstants.MsPerMinute
 					}
 				});
 				await logging.start();
@@ -929,7 +931,7 @@ describe("EntityStorageLoggingConnector", () => {
 					ts: 4000
 				});
 
-				await vi.advanceTimersByTimeAsync(60000);
+				await vi.advanceTimersByTimeAsync(DurationConstants.MsPerMinute);
 
 				const result = await storage.query(undefined, undefined, undefined, undefined, 100);
 				expect(result.entities).toHaveLength(2);
@@ -945,7 +947,7 @@ describe("EntityStorageLoggingConnector", () => {
 						batchSize: 0,
 						batchIntervalMs: 0,
 						maxEntries: 5,
-						retentionIntervalMs: 60000
+						retentionIntervalMs: DurationConstants.MsPerMinute
 					}
 				});
 				await logging.start();
@@ -958,7 +960,7 @@ describe("EntityStorageLoggingConnector", () => {
 					});
 				}
 
-				await vi.advanceTimersByTimeAsync(60000);
+				await vi.advanceTimersByTimeAsync(DurationConstants.MsPerMinute);
 
 				const result = await storage.query(undefined, undefined, undefined, undefined, 100);
 				expect(result.entities).toHaveLength(3);
@@ -971,8 +973,8 @@ describe("EntityStorageLoggingConnector", () => {
 					config: {
 						batchSize: 0,
 						batchIntervalMs: 0,
-						retainForMs: 3600000,
-						retentionIntervalMs: 60000,
+						retainForMs: DurationConstants.MsPerHour,
+						retentionIntervalMs: DurationConstants.MsPerMinute,
 						retentionBatchSize: 2
 					}
 				});
@@ -980,7 +982,7 @@ describe("EntityStorageLoggingConnector", () => {
 
 				const removeBatchSpy = vi.spyOn(storage, "removeBatch");
 
-				const twoHoursAgo = Date.now() - 7200000;
+				const twoHoursAgo = Date.now() - TWO_HOURS_MS;
 				for (let i = 0; i < 5; i++) {
 					await logInContext(logging, {
 						level: LogLevel.Info,
@@ -990,7 +992,7 @@ describe("EntityStorageLoggingConnector", () => {
 					});
 				}
 
-				await vi.advanceTimersByTimeAsync(60000);
+				await vi.advanceTimersByTimeAsync(DurationConstants.MsPerMinute);
 
 				// 5 old entries removed in chunks of retentionBatchSize, never in one call
 				expect(removeBatchSpy).toHaveBeenCalledTimes(3);
@@ -1007,13 +1009,13 @@ describe("EntityStorageLoggingConnector", () => {
 					config: {
 						batchSize: 0,
 						batchIntervalMs: 0,
-						retainForMs: 3600000,
-						retentionIntervalMs: 60000
+						retainForMs: DurationConstants.MsPerHour,
+						retentionIntervalMs: DurationConstants.MsPerMinute
 					}
 				});
 				await logging.start();
 
-				const twoHoursAgo = Date.now() - 7200000;
+				const twoHoursAgo = Date.now() - TWO_HOURS_MS;
 				await logInContext(logging, {
 					level: LogLevel.Info,
 					source: "test",
@@ -1024,7 +1026,7 @@ describe("EntityStorageLoggingConnector", () => {
 				await logging.stop();
 
 				// Retention timer is cleared; old entry should not be deleted
-				await vi.advanceTimersByTimeAsync(120000);
+				await vi.advanceTimersByTimeAsync(2 * DurationConstants.MsPerMinute);
 
 				const result = await storage.query(undefined, undefined, undefined, undefined, 100);
 				expect(result.entities).toHaveLength(1);
@@ -1035,14 +1037,14 @@ describe("EntityStorageLoggingConnector", () => {
 					config: {
 						batchSize: 0,
 						batchIntervalMs: 0,
-						retainForMs: 3600000,
+						retainForMs: DurationConstants.MsPerHour,
 						maxEntries: 10,
-						retentionIntervalMs: 60000
+						retentionIntervalMs: DurationConstants.MsPerMinute
 					}
 				});
 				await logging.start();
 
-				const twoHoursAgo = Date.now() - 7200000;
+				const twoHoursAgo = Date.now() - TWO_HOURS_MS;
 				for (let i = 0; i < 8; i++) {
 					await logInContext(logging, {
 						level: LogLevel.Info,
@@ -1060,7 +1062,7 @@ describe("EntityStorageLoggingConnector", () => {
 				}
 
 				// 13 total. Age-based removes 8 old → 5 remain. Count-based with maxEntries=10: 5 ≤ 10, no further action.
-				await vi.advanceTimersByTimeAsync(60000);
+				await vi.advanceTimersByTimeAsync(DurationConstants.MsPerMinute);
 
 				const result = await storage.query(undefined, undefined, undefined, undefined, 100);
 				expect(result.entities).toHaveLength(5);
@@ -1151,13 +1153,13 @@ describe("EntityStorageLoggingConnector", () => {
 					config: {
 						batchSize: 0,
 						batchIntervalMs: 0,
-						retainForMs: 3600000,
-						retentionIntervalMs: 60000
+						retainForMs: DurationConstants.MsPerHour,
+						retentionIntervalMs: DurationConstants.MsPerMinute
 					}
 				});
 				await logging.start();
 
-				const twoHoursAgo = Date.now() - 7200000;
+				const twoHoursAgo = Date.now() - TWO_HOURS_MS;
 
 				await ContextIdStore.run({ [ContextIdKeys.Tenant]: "test-tenant" }, async () => {
 					await logging.log({
@@ -1190,7 +1192,7 @@ describe("EntityStorageLoggingConnector", () => {
 					});
 				});
 
-				await vi.advanceTimersByTimeAsync(60000);
+				await vi.advanceTimersByTimeAsync(DurationConstants.MsPerMinute);
 
 				const testTenantResult = await ContextIdStore.run(
 					{ [ContextIdKeys.Tenant]: "test-tenant" },

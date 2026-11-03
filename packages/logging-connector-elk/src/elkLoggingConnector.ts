@@ -5,6 +5,7 @@ import {
 	BaseError,
 	Coerce,
 	Converter,
+	DurationConstants,
 	GeneralError,
 	Guards,
 	type IError,
@@ -58,7 +59,7 @@ export class ElkLoggingConnector implements ILoggingConnector {
 	/**
 	 * Default interval in milliseconds between automatic flushes.
 	 */
-	public static readonly DEFAULT_BATCH_INTERVAL_MS: number = 5000;
+	public static readonly DEFAULT_BATCH_INTERVAL_MS: number = 5 * DurationConstants.MsPerSecond;
 
 	/**
 	 * Default maximum number of entries to hold in the in-memory cache.
@@ -68,7 +69,7 @@ export class ElkLoggingConnector implements ILoggingConnector {
 	/**
 	 * Default timeout in milliseconds for a bulk request.
 	 */
-	public static readonly DEFAULT_TIMEOUT_MS: number = 30000;
+	public static readonly DEFAULT_TIMEOUT_MS: number = 30 * DurationConstants.MsPerSecond;
 
 	/**
 	 * The log levels to capture, will default to all.

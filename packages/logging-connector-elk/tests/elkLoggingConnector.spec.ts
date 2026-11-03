@@ -1,7 +1,7 @@
 // Copyright 2026 IOTA Stiftung.
 // SPDX-License-Identifier: Apache-2.0.
 import { ContextIdKeys, ContextIdStore } from "@3sixty/context";
-import { Converter, GuardError } from "@3sixty/core";
+import { Converter, DurationConstants, GuardError } from "@3sixty/core";
 import { LogLevel } from "@3sixty/logging-models";
 import { FetchHelper } from "@3sixty/web";
 import { ElkLoggingConnector } from "../src/elkLoggingConnector.js";
@@ -92,7 +92,10 @@ async function makeConnector(
 }
 
 async function waitForRequests(count: number): Promise<void> {
-	await vi.waitUntil(() => requests.length >= count, { timeout: 2000, interval: 1 });
+	await vi.waitUntil(() => requests.length >= count, {
+		timeout: 2 * DurationConstants.MsPerSecond,
+		interval: 1
+	});
 }
 
 function pairsOf(body: string): IBulkPair[] {
@@ -363,7 +366,10 @@ describe("ElkLoggingConnector", () => {
 	});
 
 	test("flushes pending entries on stop", async () => {
-		const connector = await makeConnector({ batchSize: 100, batchIntervalMs: 60000 });
+		const connector = await makeConnector({
+			batchSize: 100,
+			batchIntervalMs: DurationConstants.MsPerMinute
+		});
 		await connector.log({ level: "info", source: "Test", message: "pending" });
 		expect(requests).toHaveLength(0);
 
@@ -383,7 +389,10 @@ describe("ElkLoggingConnector", () => {
 	});
 
 	test("sends one request per batch when many entries are logged at once", async () => {
-		const connector = await makeConnector({ batchSize: 10, batchIntervalMs: 60000 });
+		const connector = await makeConnector({
+			batchSize: 10,
+			batchIntervalMs: DurationConstants.MsPerMinute
+		});
 
 		const pending: Promise<void>[] = [];
 		for (let i = 0; i < 50; i++) {
@@ -408,7 +417,10 @@ describe("ElkLoggingConnector", () => {
 	});
 
 	test("returns entries to the cache when the request fails", async () => {
-		const connector = await makeConnector({ batchSize: 100, batchIntervalMs: 60000 });
+		const connector = await makeConnector({
+			batchSize: 100,
+			batchIntervalMs: DurationConstants.MsPerMinute
+		});
 		response = {
 			ok: false,
 			status: 503,
@@ -436,7 +448,10 @@ describe("ElkLoggingConnector", () => {
 	});
 
 	test("redelivers a failed batch under the same document ids", async () => {
-		const connector = await makeConnector({ batchSize: 100, batchIntervalMs: 60000 });
+		const connector = await makeConnector({
+			batchSize: 100,
+			batchIntervalMs: DurationConstants.MsPerMinute
+		});
 		response = {
 			ok: false,
 			status: 503,
@@ -467,7 +482,10 @@ describe("ElkLoggingConnector", () => {
 	});
 
 	test("stops flushing on the size threshold while a delivery is failing", async () => {
-		const connector = await makeConnector({ batchSize: 2, batchIntervalMs: 60000 });
+		const connector = await makeConnector({
+			batchSize: 2,
+			batchIntervalMs: DurationConstants.MsPerMinute
+		});
 		response = {
 			ok: false,
 			status: 503,
@@ -512,7 +530,10 @@ describe("ElkLoggingConnector", () => {
 	});
 
 	test("retries only the transient failures of a partial bulk response", async () => {
-		const connector = await makeConnector({ batchSize: 100, batchIntervalMs: 60000 });
+		const connector = await makeConnector({
+			batchSize: 100,
+			batchIntervalMs: DurationConstants.MsPerMinute
+		});
 		response = {
 			ok: true,
 			status: 200,
@@ -554,7 +575,10 @@ describe("ElkLoggingConnector", () => {
 	});
 
 	test("redelivers a document the failed response has no result for", async () => {
-		const connector = await makeConnector({ batchSize: 100, batchIntervalMs: 60000 });
+		const connector = await makeConnector({
+			batchSize: 100,
+			batchIntervalMs: DurationConstants.MsPerMinute
+		});
 		response = {
 			ok: true,
 			status: 200,
@@ -602,7 +626,7 @@ describe("ElkLoggingConnector", () => {
 	test("trims the oldest entries when a failed flush exceeds the cache limit", async () => {
 		const connector = await makeConnector({
 			batchSize: 100,
-			batchIntervalMs: 60000,
+			batchIntervalMs: DurationConstants.MsPerMinute,
 			maxCacheSize: 2
 		});
 		response = {

@@ -1,6 +1,7 @@
 // Copyright 2026 IOTA Stiftung.
 // SPDX-License-Identifier: Apache-2.0.
 import { ContextIdKeys, ContextIdStore } from "@3sixty/context";
+import { DurationConstants } from "@3sixty/core";
 import { TEST_ELASTICSEARCH_ENDPOINT, TEST_ELASTICSEARCH_INDEX } from "./setupTestEnv.js";
 import { ElkLoggingConnector } from "../src/elkLoggingConnector.js";
 
@@ -93,7 +94,7 @@ describe("ElkLoggingConnector Integration", () => {
 				endpoint: TEST_ELASTICSEARCH_ENDPOINT,
 				indexName: TEST_ELASTICSEARCH_INDEX,
 				batchSize: 100,
-				batchIntervalMs: 60000
+				batchIntervalMs: DurationConstants.MsPerMinute
 			}
 		});
 		await connector.start();
@@ -147,7 +148,7 @@ describe("ElkLoggingConnector Integration", () => {
 				endpoint: TEST_ELASTICSEARCH_ENDPOINT,
 				indexName: TEST_ELASTICSEARCH_INDEX,
 				batchSize: 100,
-				batchIntervalMs: 60000
+				batchIntervalMs: DurationConstants.MsPerMinute
 			}
 		});
 		await connector.start();
@@ -173,7 +174,7 @@ describe("ElkLoggingConnector Integration", () => {
 				indexName: TEST_ELASTICSEARCH_INDEX,
 				batchSize: 1,
 				batchIntervalMs: 0,
-				timeoutMs: 2000
+				timeoutMs: 2 * DurationConstants.MsPerSecond
 			}
 		});
 		await connector.start();

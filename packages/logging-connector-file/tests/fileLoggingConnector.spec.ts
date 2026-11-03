@@ -4,7 +4,7 @@ import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { ContextIdKeys, ContextIdStore } from "@3sixty/context";
-import { GuardError } from "@3sixty/core";
+import { DurationConstants, GuardError } from "@3sixty/core";
 import { LoggingConnectorFactory, LogLevel, MultiLoggingConnector } from "@3sixty/logging-models";
 import { FileLoggingConnector } from "../src/fileLoggingConnector.js";
 
@@ -108,7 +108,10 @@ describe("FileLoggingConnector", () => {
 	});
 
 	test("can start and stop", async () => {
-		const connector = createConnector({ directory: testDir, mutexTimeoutMs: 2000 });
+		const connector = createConnector({
+			directory: testDir,
+			mutexTimeoutMs: 2 * DurationConstants.MsPerSecond
+		});
 		await expect(connector.start()).resolves.toBeUndefined();
 		await expect(connector.stop()).resolves.toBeUndefined();
 	});
