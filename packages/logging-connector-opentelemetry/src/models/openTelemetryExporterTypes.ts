@@ -4,7 +4,6 @@
 /**
  * The types of log record exporters.
  */
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const OpenTelemetryExporterTypes = {
 	/**
 	 * OTLP over HTTP.

@@ -4,7 +4,6 @@
 /**
  * The types of log record processors.
  */
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const OpenTelemetryProcessorTypes = {
 	/**
 	 * Accumulates records and flushes on a schedule or when the buffer fills.

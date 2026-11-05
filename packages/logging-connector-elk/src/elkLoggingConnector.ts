@@ -14,7 +14,7 @@ import {
 } from "@3sixty/core";
 import { type ILogEntry, type ILoggingConnector, LogLevel } from "@3sixty/logging-models";
 import { nameof } from "@3sixty/nameof";
-import { FetchHelper, HttpMethod, HttpStatusCode } from "@3sixty/web";
+import { FetchHelper, HttpMethod, HttpStatusCode, MimeTypes } from "@3sixty/web";
 import type { IElkBatchEntry } from "./models/IElkBatchEntry.js";
 import type { IElkBulkOutcome } from "./models/IElkBulkOutcome.js";
 import type { IElkLoggingConnectorConstructorOptions } from "./models/IElkLoggingConnectorConstructorOptions.js";
@@ -102,16 +102,16 @@ export class ElkLoggingConnector implements ILoggingConnector {
 	private readonly _authorization?: string;
 
 	/**
-	 * Flush when the cache reaches this size; undefined or <= 1 disables size-based flushing.
+	 * Flush when the cache reaches this size; undefined or &lt;= 1 disables size-based flushing.
 	 * @internal
 	 */
-	private readonly _batchSize: number | undefined;
+	private readonly _batchSize?: number;
 
 	/**
-	 * Flush every this many milliseconds; undefined or <= 0 disables timer-based flushing.
+	 * Flush every this many milliseconds; undefined or &lt;= 0 disables timer-based flushing.
 	 * @internal
 	 */
-	private readonly _batchIntervalMs: number | undefined;
+	private readonly _batchIntervalMs?: number;
 
 	/**
 	 * Entries waiting to be delivered to Elasticsearch.
@@ -463,7 +463,7 @@ export class ElkLoggingConnector implements ILoggingConnector {
 			})
 			.join("\n")}\n`;
 
-		const headers: { [key: string]: string } = { "content-type": "application/x-ndjson" };
+		const headers: { [key: string]: string } = { "content-type": MimeTypes.Ndjson };
 		if (Is.stringValue(this._authorization)) {
 			headers.authorization = this._authorization;
 		}
@@ -490,7 +490,7 @@ export class ElkLoggingConnector implements ILoggingConnector {
 		}
 
 		const contentType = response.headers.get("content-type") ?? "";
-		if (!contentType.toLowerCase().includes("application/json")) {
+		if (!contentType.toLowerCase().includes(MimeTypes.Json)) {
 			return { retry: [], rejected: 0 };
 		}
 
@@ -612,7 +612,9 @@ export class ElkLoggingConnector implements ILoggingConnector {
 			this._batchTimer = globalThis.setTimeout(async () => {
 				try {
 					await this.flush();
-				} catch {}
+				} catch {
+					// A failed flush is retried by the timer it restarts.
+				}
 			}, delayMs);
 		}
 	}

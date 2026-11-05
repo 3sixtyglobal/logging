@@ -4,7 +4,6 @@
 /**
  * The log levels.
  */
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const LogLevel = {
 	/**
 	 * Info.

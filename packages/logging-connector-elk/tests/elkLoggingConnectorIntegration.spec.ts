@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0.
 import { ContextIdKeys, ContextIdStore } from "@3sixty/context";
 import { DurationConstants } from "@3sixty/core";
+import { MimeTypes } from "@3sixty/web";
 import { TEST_ELASTICSEARCH_ENDPOINT, TEST_ELASTICSEARCH_INDEX } from "./setupTestEnv.js";
 import { ElkLoggingConnector } from "../src/elkLoggingConnector.js";
 
@@ -46,7 +47,7 @@ async function blockWrites(): Promise<void> {
 async function unblockWrites(): Promise<void> {
 	await fetch(`${TEST_ELASTICSEARCH_ENDPOINT}/${TEST_ELASTICSEARCH_INDEX}/_settings`, {
 		method: "PUT",
-		headers: { "content-type": "application/json" },
+		headers: { "content-type": MimeTypes.Json },
 		body: JSON.stringify({ "index.blocks.write": false })
 	});
 }

@@ -3,7 +3,7 @@
 import { ContextIdKeys, ContextIdStore } from "@3sixty/context";
 import { Converter, DurationConstants, GuardError } from "@3sixty/core";
 import { LogLevel } from "@3sixty/logging-models";
-import { FetchHelper } from "@3sixty/web";
+import { FetchHelper, MimeTypes } from "@3sixty/web";
 import { ElkLoggingConnector } from "../src/elkLoggingConnector.js";
 
 interface ICapturedRequest {
@@ -425,7 +425,7 @@ describe("ElkLoggingConnector", () => {
 			ok: false,
 			status: 503,
 			statusText: "Service Unavailable",
-			contentType: "application/json",
+			contentType: MimeTypes.Json,
 			payload: {}
 		};
 
@@ -438,7 +438,7 @@ describe("ElkLoggingConnector", () => {
 			ok: true,
 			status: 200,
 			statusText: "OK",
-			contentType: "application/json",
+			contentType: MimeTypes.Json,
 			payload: { errors: false, items: [] }
 		};
 		await connector.flush();
@@ -456,7 +456,7 @@ describe("ElkLoggingConnector", () => {
 			ok: false,
 			status: 503,
 			statusText: "Service Unavailable",
-			contentType: "application/json",
+			contentType: MimeTypes.Json,
 			payload: {}
 		};
 
@@ -468,7 +468,7 @@ describe("ElkLoggingConnector", () => {
 			ok: true,
 			status: 200,
 			statusText: "OK",
-			contentType: "application/json",
+			contentType: MimeTypes.Json,
 			payload: { errors: false, items: [] }
 		};
 		await connector.flush();
@@ -490,7 +490,7 @@ describe("ElkLoggingConnector", () => {
 			ok: false,
 			status: 503,
 			statusText: "Service Unavailable",
-			contentType: "application/json",
+			contentType: MimeTypes.Json,
 			payload: {}
 		};
 
@@ -513,7 +513,7 @@ describe("ElkLoggingConnector", () => {
 			ok: true,
 			status: 200,
 			statusText: "OK",
-			contentType: "application/json",
+			contentType: MimeTypes.Json,
 			payload: { errors: false, items: [] }
 		};
 		await connector.flush();
@@ -538,7 +538,7 @@ describe("ElkLoggingConnector", () => {
 			ok: true,
 			status: 200,
 			statusText: "OK",
-			contentType: "application/json",
+			contentType: MimeTypes.Json,
 			payload: {
 				errors: true,
 				items: [
@@ -561,7 +561,7 @@ describe("ElkLoggingConnector", () => {
 			ok: true,
 			status: 200,
 			statusText: "OK",
-			contentType: "application/json",
+			contentType: MimeTypes.Json,
 			payload: { errors: false, items: [] }
 		};
 		await connector.flush();
@@ -583,7 +583,7 @@ describe("ElkLoggingConnector", () => {
 			ok: true,
 			status: 200,
 			statusText: "OK",
-			contentType: "application/json",
+			contentType: MimeTypes.Json,
 			// Two documents were sent but the response only accounts for the first.
 			payload: { errors: true, items: [{ create: { status: 201 } }] }
 		};
@@ -596,7 +596,7 @@ describe("ElkLoggingConnector", () => {
 			ok: true,
 			status: 200,
 			statusText: "OK",
-			contentType: "application/json",
+			contentType: MimeTypes.Json,
 			payload: { errors: false, items: [] }
 		};
 		await connector.flush();
@@ -613,7 +613,7 @@ describe("ElkLoggingConnector", () => {
 			ok: false,
 			status: 503,
 			statusText: "Service Unavailable",
-			contentType: "application/json",
+			contentType: MimeTypes.Json,
 			payload: {}
 		};
 
@@ -633,7 +633,7 @@ describe("ElkLoggingConnector", () => {
 			ok: false,
 			status: 503,
 			statusText: "Service Unavailable",
-			contentType: "application/json",
+			contentType: MimeTypes.Json,
 			payload: {}
 		};
 
@@ -646,7 +646,7 @@ describe("ElkLoggingConnector", () => {
 			ok: true,
 			status: 200,
 			statusText: "OK",
-			contentType: "application/json",
+			contentType: MimeTypes.Json,
 			payload: { errors: false, items: [] }
 		};
 		await connector.flush();

@@ -6,5 +6,4 @@ import type { ILoggingConnector } from "../models/ILoggingConnector.js";
 /**
  * Factory for creating logging connectors.
  */
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const LoggingConnectorFactory = Factory.createFactory<ILoggingConnector>("logging");
